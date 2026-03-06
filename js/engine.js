@@ -66,4 +66,53 @@ class GameEngine {
     log(msg, type = 'info') {
         this.logs.push({ msg, type, turn: this.turn });
     }
+
+    /* Actions */
+
+    /** Spawn a unit at the player's base. Returns true on success. */
+    spawn(who, unitType) {
+        const p   = this.player(who);
+        const def = UNIT_DEFS[unitType];
+        if (!def) { this.log(`Unknown unit type: ${unitType}`, 'error'); return false; }
+        if (p.gold < def.cost) { this.log(`Not enough gold for ${unitType} (need ${def.cost}, have ${p.gold})`, 'error'); return false; }
+
+        // Find a free spawn tile near the base
+        const b = p.base;
+        const dx = who === 'human' ? 1 : -1;
+        const candidates = [
+            { x: b.x,      y: b.y },
+            { x: b.x,      y: b.y - 1 },
+            { x: b.x,      y: b.y + 1 },
+            { x: b.x + dx, y: b.y },
+            { x: b.x + dx, y: b.y - 1 },
+            { x: b.x + dx, y: b.y + 1 },
+            { x: b.x,      y: b.y - 2 },
+            { x: b.x,      y: b.y + 2 },
+        ];
+
+        let pos = null;
+        for (const c of candidates) {
+            if (this.inBounds(c.x, c.y) && !this.unitAt(c.x, c.y)) { pos = c; break; }
+        }
+        if (!pos) { this.log(`No space to spawn ${unitType}`, 'error'); return false; }
+
+        const unit = {
+            id: this._nextId++,
+            type: unitType,
+            owner: who,
+            x: pos.x, y: pos.y,
+            hp: def.hp, maxHp: def.hp,
+            atk: def.atk, range: def.range,
+            gather: def.gather
+        };
+
+        p.units.push(unit);
+        p.gold -= def.cost;
+        this._acted.add(unit.id);
+
+        const tag = who === 'human' ? 'player' : 'bot';
+        this.log(`${who} spawned ${unitType} #${unit.id} at (${pos.x},${pos.y})`, tag);
+        this.turnEffects.push({ type: 'spawn', x: pos.x, y: pos.y, color: who === 'human' ? '#58a6ff' : '#f85149' });
+        return true;
+    }
 }
