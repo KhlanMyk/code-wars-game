@@ -160,4 +160,56 @@ class GameEngine {
         }
         return false;
     }
+
+    /** Attack an enemy unit. */
+    attack(who, unitId, targetId) {
+        const unit   = this._getOwnAliveUnit(who, unitId);
+        const enemyP = this.enemy(who);
+        const target = enemyP.units.find(u => u.id === targetId && u.hp > 0);
+
+        if (!unit || !target) return false;
+        if (this._acted.has(unitId)) return false;
+
+        const d = this.dist(unit.x, unit.y, target.x, target.y);
+        if (d > unit.range) return false;
+
+        target.hp -= unit.atk;
+        this._acted.add(unitId);
+
+        const tag = who === 'human' ? 'player' : 'bot';
+        this.log(`${who}'s ${unit.type} #${unit.id} hits ${target.type} #${target.id} for ${unit.atk} dmg`, tag);
+        this.turnEffects.push({ type: 'attack',
+            from: { x: unit.x, y: unit.y },
+            to:   { x: target.x, y: target.y },
+            color: who === 'human' ? '#58a6ff' : '#f85149'
+        });
+
+        if (target.hp <= 0) {
+            this.log(`${target.type} #${target.id} destroyed!`, 'combat');
+            this.turnEffects.push({ type: 'death', x: target.x, y: target.y });
+        }
+        return true;
+    }
+
+    /** Attack the enemy base. */
+    attackBase(who, unitId) {
+        const unit  = this._getOwnAliveUnit(who, unitId);
+        const eBase = this.enemy(who).base;
+        if (!unit || this._acted.has(unitId)) return false;
+
+        const d = this.dist(unit.x, unit.y, eBase.x, eBase.y);
+        if (d > unit.range) return false;
+
+        eBase.hp -= unit.atk;
+        this._acted.add(unitId);
+
+        const tag = who === 'human' ? 'player' : 'bot';
+        this.log(`${who}'s ${unit.type} #${unit.id} hits enemy base for ${unit.atk} dmg`, tag);
+        this.turnEffects.push({ type: 'attack',
+            from: { x: unit.x, y: unit.y },
+            to:   { x: eBase.x, y: eBase.y },
+            color: who === 'human' ? '#58a6ff' : '#f85149'
+        });
+        return true;
+    }
 }
