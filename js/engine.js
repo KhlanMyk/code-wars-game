@@ -19,13 +19,14 @@ class GameEngine {
         this.reset();
     }
 
+    /* Initialisation */
     reset() {
         this.turn        = 0;
-        this.state       = 'idle';
+        this.state       = 'idle';   // idle | running | paused | finished
         this.winner      = null;
         this._nextId     = 1;
         this.logs        = [];
-        this.turnEffects = [];
+        this.turnEffects = [];       // visual effects for the renderer
 
         this.human = this._makePlayer(1, Math.floor(MAP_HEIGHT / 2));
         this.bot   = this._makePlayer(MAP_WIDTH - 2, Math.floor(MAP_HEIGHT / 2));
@@ -108,11 +109,55 @@ class GameEngine {
 
         p.units.push(unit);
         p.gold -= def.cost;
-        this._acted.add(unit.id);
+        this._acted.add(unit.id);   // newly spawned units can't act this turn
 
         const tag = who === 'human' ? 'player' : 'bot';
         this.log(`${who} spawned ${unitType} #${unit.id} at (${pos.x},${pos.y})`, tag);
         this.turnEffects.push({ type: 'spawn', x: pos.x, y: pos.y, color: who === 'human' ? '#58a6ff' : '#f85149' });
         return true;
+    }
+
+    /** Move unit one step in a cardinal direction. */
+    move(who, unitId, direction) {
+        const unit = this._getOwnAliveUnit(who, unitId);
+        if (!unit || this._acted.has(unitId)) return false;
+
+        const dirs = { up: [0,-1], down: [0,1], left: [-1,0], right: [1,0] };
+        const d = dirs[direction];
+        if (!d) { this.log(`Bad direction: ${direction}`, 'error'); return false; }
+
+        const nx = unit.x + d[0], ny = unit.y + d[1];
+        if (!this.canStep(nx, ny)) return false;
+
+        unit.x = nx; unit.y = ny;
+        this._acted.add(unitId);
+        return true;
+    }
+
+    /** Move one step toward (tx, ty). Picks the best cardinal direction. */
+    moveTowards(who, unitId, tx, ty) {
+        const unit = this._getOwnAliveUnit(who, unitId);
+        if (!unit || this._acted.has(unitId)) return false;
+
+        const dirs = [
+            { name: 'right', dx: 1, dy: 0 },
+            { name: 'left',  dx:-1, dy: 0 },
+            { name: 'down',  dx: 0, dy: 1 },
+            { name: 'up',    dx: 0, dy:-1 }
+        ];
+
+        dirs.sort((a, b) => {
+            const da = this.dist(unit.x + a.dx, unit.y + a.dy, tx, ty);
+            const db = this.dist(unit.x + b.dx, unit.y + b.dy, tx, ty);
+            return da - db;
+        });
+
+        for (const d of dirs) {
+            const nx = unit.x + d.dx, ny = unit.y + d.dy;
+            if (this.canStep(nx, ny)) {
+                return this.move(who, unitId, d.name);
+            }
+        }
+        return false;
     }
 }
