@@ -212,4 +212,68 @@ class GameEngine {
         });
         return true;
     }
+
+    /** Worker gathers from an adjacent gold mine. */
+    gather(who, unitId) {
+        const unit = this._getOwnAliveUnit(who, unitId);
+        if (!unit || unit.type !== 'worker' || this._acted.has(unitId)) return false;
+
+        for (const mine of this.mines) {
+            if (mine.gold <= 0) continue;
+            if (this.dist(unit.x, unit.y, mine.x, mine.y) > 1) continue;
+
+            const amt = Math.min(unit.gather, mine.gold);
+            mine.gold -= amt;
+            this.player(who).gold += amt;
+            this._acted.add(unitId);
+
+            const tag = who === 'human' ? 'player' : 'bot';
+            this.log(`${who}'s worker #${unit.id} gathered ${amt}g`, tag);
+            this.turnEffects.push({ type: 'gather', x: unit.x, y: unit.y });
+            return true;
+        }
+        return false;
+    }
+
+    /* Turn lifecycle */
+
+    beginTurn() {
+        this._acted.clear();
+        this.turnEffects = [];
+    }
+
+    endTurn() {
+        // Remove dead units
+        this.human.units = this.human.units.filter(u => u.hp > 0);
+        this.bot.units   = this.bot.units.filter(u => u.hp > 0);
+
+        // Passive income
+        this.human.gold += INCOME;
+        this.bot.gold   += INCOME;
+
+        // Win / lose checks
+        if (this.bot.base.hp <= 0) {
+            this.state  = 'finished';
+            this.winner = 'human';
+            this.log('🎉 Victory! Enemy base destroyed!', 'victory');
+        } else if (this.human.base.hp <= 0) {
+            this.state  = 'finished';
+            this.winner = 'bot';
+            this.log('💀 Defeat! Your base was destroyed!', 'defeat');
+        } else if (this.turn >= MAX_TURNS - 1) {
+            this.state = 'finished';
+            const hs = this.human.base.hp + this.human.units.length * 50 + this.human.gold;
+            const bs = this.bot.base.hp   + this.bot.units.length * 50   + this.bot.gold;
+            this.winner = hs >= bs ? 'human' : 'bot';
+            this.log(`Time up! ${this.winner === 'human' ? 'You win' : 'Bot wins'} by score!`,
+                     this.winner === 'human' ? 'victory' : 'defeat');
+        }
+
+        this.turn++;
+    }
+
+    /* Internal */
+    _getOwnAliveUnit(who, id) {
+        return this.player(who).units.find(u => u.id === id && u.hp > 0) || null;
+    }
 }
