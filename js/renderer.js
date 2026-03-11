@@ -37,7 +37,7 @@ class Renderer {
         this._drawGrid(ctx);
         this._drawMines(ctx, engine.mines);
         this._drawBases(ctx, engine);
-        if (effects && effects.length) this._drawEffects(ctx, effects);
+        this._drawUnits(ctx, engine.allUnits());
     }
 
     /* Grid */
@@ -146,5 +146,104 @@ class Renderer {
         // HP bar
         const hpPct = Math.max(0, base.hp / base.maxHp);
         this._drawHpBar(ctx, cx, by - 8, bw, 5, hpPct, color);
+    }
+
+    /* Units */
+    _drawUnits(ctx, units) {
+        for (const u of units) {
+            if (u.hp <= 0) continue;
+            const cx = u.x * this.tileW + this.tileW / 2;
+            const cy = u.y * this.tileH + this.tileH / 2;
+            const r  = Math.min(this.tileW, this.tileH) * 0.34;
+            const color = u.owner === 'human' ? '#58a6ff' : '#f85149';
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(cx + 1, cy + r * 0.8, r * 0.7, r * 0.25, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Body shape varies by type
+            ctx.fillStyle = color;
+            ctx.strokeStyle = u.owner === 'human' ? '#2f81d9' : '#d13529';
+            ctx.lineWidth = 1.5;
+
+            if (u.type === 'worker') {
+                // Square with rounded corners
+                const s = r * 0.8;
+                this._roundRect(ctx, cx - s, cy - s, s * 2, s * 2, 4);
+                ctx.fill();
+                ctx.stroke();
+            } else if (u.type === 'archer') {
+                // Diamond
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - r);
+                ctx.lineTo(cx + r, cy);
+                ctx.lineTo(cx, cy + r);
+                ctx.lineTo(cx - r, cy);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                // Circle (warrior)
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // Type letter
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${Math.max(10, r * 1.0)}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const letter = u.type === 'worker' ? 'W' : u.type === 'warrior' ? 'S' : 'A';
+            ctx.fillText(letter, cx, cy + 1);
+
+            // HP bar
+            const hpPct = Math.max(0, u.hp / u.maxHp);
+            this._drawHpBar(ctx, cx, cy - r - 6, this.tileW * 0.7, 3, hpPct, null);
+
+            // Unit ID (tiny)
+            ctx.fillStyle = '#ffffff88';
+            ctx.font = `${Math.max(7, this.tileH * 0.16)}px monospace`;
+            ctx.textBaseline = 'top';
+            ctx.fillText('#' + u.id, cx, cy + r + 1);
+        }
+    }
+
+    /* HP bar helper */
+    _drawHpBar(ctx, cx, topY, width, height, pct, overrideColor) {
+        const x = cx - width / 2;
+        ctx.fillStyle = '#00000066';
+        ctx.fillRect(x, topY, width, height);
+
+        let barColor;
+        if (overrideColor) {
+            barColor = overrideColor;
+        } else if (pct > 0.6) {
+            barColor = '#3fb950';
+        } else if (pct > 0.3) {
+            barColor = '#d29922';
+        } else {
+            barColor = '#f85149';
+        }
+        ctx.fillStyle = barColor;
+        ctx.fillRect(x, topY, width * pct, height);
+    }
+
+    /* Rounded rect helper */
+    _roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
     }
 }
