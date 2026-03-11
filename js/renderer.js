@@ -38,6 +38,7 @@ class Renderer {
         this._drawMines(ctx, engine.mines);
         this._drawBases(ctx, engine);
         this._drawUnits(ctx, engine.allUnits());
+        if (effects && effects.length) this._drawEffects(ctx, effects);
     }
 
     /* Grid */
@@ -245,5 +246,67 @@ class Renderer {
         ctx.lineTo(x, y + r);
         ctx.quadraticCurveTo(x, y, x + r, y);
         ctx.closePath();
+    }
+
+    /* Effects */
+    _drawEffects(ctx, effects) {
+        for (const e of effects) {
+            if (e.type === 'attack') {
+                const fx = e.from.x * this.tileW + this.tileW / 2;
+                const fy = e.from.y * this.tileH + this.tileH / 2;
+                const tx = e.to.x   * this.tileW + this.tileW / 2;
+                const ty = e.to.y   * this.tileH + this.tileH / 2;
+
+                // Line
+                ctx.strokeStyle = e.color || '#ffd54f';
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(fx, fy);
+                ctx.lineTo(tx, ty);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Impact
+                ctx.fillStyle = 'rgba(255,200,50,0.45)';
+                ctx.beginPath();
+                ctx.arc(tx, ty, this.tileW * 0.25, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (e.type === 'death') {
+                const cx = e.x * this.tileW + this.tileW / 2;
+                const cy = e.y * this.tileH + this.tileH / 2;
+                ctx.fillStyle = 'rgba(248,81,73,0.55)';
+                ctx.beginPath();
+                ctx.arc(cx, cy, this.tileW * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.font = `${this.tileH * 0.5}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('💥', cx, cy);
+            }
+
+            if (e.type === 'spawn') {
+                const cx = e.x * this.tileW + this.tileW / 2;
+                const cy = e.y * this.tileH + this.tileH / 2;
+                ctx.strokeStyle = e.color || '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(cx, cy, this.tileW * 0.45, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            if (e.type === 'gather') {
+                const cx = e.x * this.tileW + this.tileW / 2;
+                const cy = e.y * this.tileH + this.tileH / 2;
+                ctx.fillStyle = 'rgba(227,179,65,0.5)';
+                ctx.font = `${this.tileH * 0.4}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('+💰', cx, cy - this.tileH * 0.45);
+            }
+        }
     }
 }
