@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CodeArena — Python Strategy Game</title>
+
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -96,11 +97,62 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Console -->
+                <div id="console-panel">
+                    <div class="panel-header">
+                        <span class="panel-title">📋 Console</span>
+                        <div class="console-tabs">
+                            <button class="tab active" data-tab="log">Game Log</button>
+                            <button class="tab" data-tab="api">API Reference</button>
+                        </div>
+                        <button id="btn-clear-console" class="btn-small">Clear</button>
+                    </div>
+                    <div id="console-log" class="console-content active-tab"></div>
+                    <div id="console-api" class="console-content">
+                        <div class="api-docs">
+                            <h3>🔍 Query Functions</h3>
+                            <pre>my_gold()        → int   # Your current gold
+my_units()       → list  # Your units [{id, type, x, y, hp, max_hp, atk, range}]
+enemy_units()    → list  # Enemy units (same format)
+my_base()        → dict  # {x, y, hp, max_hp}
+enemy_base()     → dict  # {x, y, hp, max_hp}
+get_mines()      → list  # [{x, y, gold}]
+get_turn()       → int   # Current turn number</pre>
+
+                            <h3>⚡ Action Functions</h3>
+                            <pre>spawn(type)              # "worker" (50g), "warrior" (100g), "archer" (120g)
+move(unit_id, dir)       # "up", "down", "left", "right"
+move_towards(id, x, y)  # Auto-move one step toward (x, y)
+attack(unit_id, target)  # Attack enemy unit (must be in range)
+attack_base(unit_id)     # Attack enemy base (must be in range)
+gather(unit_id)          # Worker gathers from adjacent mine (+15g)</pre>
+
+                            <h3>🛠 Utility</h3>
+                            <pre>log(message)             # Print to console
+dist(x1, y1, x2, y2)    # Manhattan distance</pre>
+
+                            <h3>📊 Unit Stats</h3>
+                            <pre>Worker  — Cost: 50g  | HP: 40  | ATK: 5  | Range: 1 | Gathers 15g
+Warrior — Cost: 100g | HP: 150 | ATK: 30 | Range: 1
+Archer  — Cost: 120g | HP: 70  | ATK: 18 | Range: 3</pre>
+
+                            <h3>📜 Rules</h3>
+                            <pre>• Each unit can do ONE action per turn (move/attack/gather)
+• Spawned units can't act until next turn
+• Game ends when a base reaches 0 HP or after 150 turns
+• Income: +10 gold per turn (passive)
+• Write a strategy() function — it's called every turn!</pre>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 
     <script src="js/engine.js"></script>
     <script src="js/renderer.js"></script>
+    <script src="js/bot.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
