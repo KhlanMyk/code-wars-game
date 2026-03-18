@@ -225,3 +225,108 @@ const DEFAULT_CODE = `def strategy():
         # Otherwise move toward the enemy base
         move_towards(unit["id"], base["x"], base["y"])
 `;
+
+/* App initialisation */
+
+let engine, renderer, botAI, editor;
+let running = false;
+let paused  = false;
+let stepMode = false;
+let speedDelay = 250;   // ms between turns
+let skulptReady = false;
+
+document.addEventListener('DOMContentLoaded', () => {
+    engine   = new GameEngine();
+    renderer = new Renderer(document.getElementById('game-canvas'));
+    botAI    = new BotAI();
+
+    initEditor();
+    initUI();
+    checkSkulpt();
+
+    renderer.render(engine, []);
+    appendLog('Welcome to CodeArena! Write a strategy() function and click ▶ Run Battle.', 'system');
+    appendLog('Use the "API Reference" tab for the full list of commands.', 'system');
+});
+
+/* CodeMirror */
+function initEditor() {
+    editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+        mode: 'python',
+        theme: 'material-darker',
+        lineNumbers: true,
+        indentUnit: 4,
+        tabSize: 4,
+        indentWithTabs: false,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        lineWrapping: false,
+        extraKeys: {
+            'Ctrl-Enter': () => startBattle(),
+            'Cmd-Enter':  () => startBattle()
+        }
+    });
+    editor.setValue(DEFAULT_CODE);
+}
+
+/* Skulpt readiness */
+function checkSkulpt() {
+    if (typeof Sk !== 'undefined') {
+        skulptReady = true;
+        appendLog('Python engine loaded ✓', 'system');
+    } else {
+        appendLog('⏳ Loading Python engine (Skulpt)…', 'system');
+        const check = setInterval(() => {
+            if (typeof Sk !== 'undefined') {
+                skulptReady = true;
+                clearInterval(check);
+                appendLog('Python engine loaded ✓', 'system');
+            }
+        }, 500);
+        // Timeout after 15s
+        setTimeout(() => {
+            if (!skulptReady) {
+                clearInterval(check);
+                appendLog('⚠ Failed to load Skulpt. Check your internet connection and reload.', 'error');
+            }
+        }, 15000);
+    }
+}
+
+/* UI wiring */
+function initUI() {
+    document.getElementById('btn-run').addEventListener('click', startBattle);
+    document.getElementById('btn-step').addEventListener('click', stepOnce);
+    document.getElementById('btn-pause').addEventListener('click', togglePause);
+    document.getElementById('btn-reset').addEventListener('click', resetGame);
+    document.getElementById('overlay-btn').addEventListener('click', resetGame);
+    document.getElementById('btn-clear-console').addEventListener('click', () => {
+        document.getElementById('console-log').innerHTML = '';
+    });
+
+    // Speed slider
+    document.getElementById('speed-slider').addEventListener('input', e => {
+        const v = parseInt(e.target.value);
+        speedDelay = [800, 400, 200, 80, 30][v - 1] || 200;
+    });
+
+    // Example loader
+    document.getElementById('example-select').addEventListener('change', e => {
+        const key = e.target.value;
+        if (EXAMPLES[key]) {
+            editor.setValue(EXAMPLES[key]);
+        }
+        e.target.value = '';
+    });
+
+    // Console tabs
+    document.querySelectorAll('.console-tabs .tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.console-tabs .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.console-content').forEach(c => c.classList.remove('active-tab'));
+            tab.classList.add('active');
+            document.getElementById('console-' + tab.dataset.tab).classList.add('active-tab');
+        });
+    });
+}
+
