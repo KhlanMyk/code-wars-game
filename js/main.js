@@ -330,3 +330,114 @@ function initUI() {
     });
 }
 
+/* Game loop */
+
+async function startBattle() {
+    if (running) return;
+    if (!skulptReady) {
+        appendLog('⚠ Python engine not ready yet. Please wait…', 'error');
+        return;
+    }
+
+    running  = true;
+    paused   = false;
+    stepMode = false;
+    setButtons('running');
+
+    if (engine.state === 'finished') resetGame();
+
+    engine.state = 'running';
+    appendLog(`— Battle started! —`, 'system');
+
+    await gameLoop();
+}
+
+async function stepOnce() {
+    if (!skulptReady) {
+        appendLog('⚠ Python engine not ready yet.', 'error');
+        return;
+    }
+
+    if (engine.state === 'finished') return;
+    if (running && !paused) return;
+
+    running  = true;
+    paused   = false;
+    stepMode = true;
+    engine.state = 'running';
+    setButtons('running');
+
+    await executeTurn();
+
+    running  = false;
+    stepMode = false;
+    setButtons(engine.state === 'finished' ? 'finished' : 'idle');
+}
+
+function togglePause() {
+    if (!running) return;
+    paused = !paused;
+    document.getElementById('btn-pause').textContent = paused ? '▶ Resume' : '⏸ Pause';
+    if (paused) appendLog('⏸ Paused', 'system');
+    else appendLog('▶ Resumed', 'system');
+}
+
+function resetGame() {
+    running = false;
+    paused  = false;
+    engine.reset();
+
+    document.getElementById('game-overlay').classList.add('hidden');
+    setButtons('idle');
+    updateHUD();
+    renderer.render(engine, []);
+    appendLog('— Game reset —', 'system');
+}
+
+async function gameLoop() {
+    while (running && engine.state !== 'finished') {
+        if (paused) {
+            await delay(100);
+            continue;
+        }
+
+        await executeTurn();
+
+        if (stepMode) break;
+        await delay(speedDelay);
+    }
+
+    running = false;
+    setButtons(engine.state === 'finished' ? 'finished' : 'idle');
+
+    if (engine.state === 'finished') showEndOverlay();
+}
+
+async function executeTurn() {
+    // Player turn
+    engine.beginTurn();
+    await runPlayerPython();
+
+    // Capture player effects before bot clears them
+    const playerEffects = [...engine.turnEffects];
+
+    // Bot turn
+    engine._acted.clear();          // reset acted set for bot
+    engine.turnEffects = [];        // fresh effects for bot
+    botAI.execute(engine);
+
+    // Merge effects from both halves
+    const effects = [...playerEffects, ...engine.turnEffects];
+
+    // End turn
+    engine.endTurn();
+    renderer.render(engine, effects);
+    updateHUD();
+
+    // Brief pause to show effects
+    if (effects.length > 0) {
+        await delay(Math.min(speedDelay, 150));
+        renderer.render(engine, []);
+    }
+}
+
