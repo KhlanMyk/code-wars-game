@@ -441,3 +441,134 @@ async function executeTurn() {
     }
 }
 
+/* Python bridge (Skulpt) */
+
+async function runPlayerPython() {
+    const code = editor.getValue();
+
+    const fullCode = code + '\n\nstrategy()\n';
+
+    Sk.configure({
+        output: text => appendLog(text.replace(/\n$/, ''), 'info'),
+        read: x => {
+            if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined)
+                throw "File not found: '" + x + "'";
+            return Sk.builtinFiles["files"][x];
+        },
+        __future__: Sk.python3 || {},
+        execLimit: 10000      // prevent infinite loops
+    });
+
+    // Inject API builtins (must be after Sk.configure)
+    injectAPI();
+
+    try {
+        await Sk.misceval.asyncToPromise(() =>
+            Sk.importMainWithBody("<stdin>", false, fullCode, true)
+        );
+    } catch (err) {
+        const msg = err.toString();
+        appendLog('❌ Python Error: ' + msg, 'error');
+        // Stop battle on error
+        running = false;
+        engine.state = 'idle';
+    }
+}
+
+function injectAPI() {
+    const B = Sk.builtin;
+    const ffi = Sk.ffi;
+
+    const pyFunc = fn => new B.func(fn);
+    const toJs   = v  => ffi.remapToJs(v);
+    const toPy   = v  => ffi.remapToPy(v);
+
+    // Query functions
+    const my_gold = pyFunc(() => new B.int_(engine.human.gold));
+
+    const my_units = pyFunc(() => {
+        const list = engine.human.units.filter(u => u.hp > 0).map(u => ({
+            id: u.id, type: u.type, x: u.x, y: u.y,
+            hp: u.hp, max_hp: u.maxHp, atk: u.atk, range: u.range
+        }));
+        return toPy(list);
+    });
+
+    const enemy_units = pyFunc(() => {
+        const list = engine.bot.units.filter(u => u.hp > 0).map(u => ({
+            id: u.id, type: u.type, x: u.x, y: u.y,
+            hp: u.hp, max_hp: u.maxHp, atk: u.atk, range: u.range
+        }));
+        return toPy(list);
+    });
+
+    const my_base = pyFunc(() => {
+        const b = engine.human.base;
+        return toPy({ x: b.x, y: b.y, hp: b.hp, max_hp: b.maxHp });
+    });
+
+    const enemy_base = pyFunc(() => {
+        const b = engine.bot.base;
+        return toPy({ x: b.x, y: b.y, hp: b.hp, max_hp: b.maxHp });
+    });
+
+    const get_mines = pyFunc(() => {
+        return toPy(engine.mines.filter(m => m.gold > 0).map(m => ({ x: m.x, y: m.y, gold: m.gold })));
+    });
+
+    const get_turn = pyFunc(() => new B.int_(engine.turn));
+
+    // Action functions
+    const spawn = pyFunc(function (unitType) {
+        const result = engine.spawn('human', toJs(unitType));
+        return toPy(result);
+    });
+
+    const move = pyFunc(function (unitId, direction) {
+        return toPy(engine.move('human', toJs(unitId), toJs(direction)));
+    });
+
+    const move_towards = pyFunc(function (unitId, tx, ty) {
+        return toPy(engine.moveTowards('human', toJs(unitId), toJs(tx), toJs(ty)));
+    });
+
+    const attack = pyFunc(function (unitId, targetId) {
+        return toPy(engine.attack('human', toJs(unitId), toJs(targetId)));
+    });
+
+    const attack_base = pyFunc(function (unitId) {
+        return toPy(engine.attackBase('human', toJs(unitId)));
+    });
+
+    const gather = pyFunc(function (unitId) {
+        return toPy(engine.gather('human', toJs(unitId)));
+    });
+
+    // Utility
+    const dist = pyFunc(function (x1, y1, x2, y2) {
+        return new B.int_(Math.abs(toJs(x1) - toJs(x2)) + Math.abs(toJs(y1) - toJs(y2)));
+    });
+
+    const log = pyFunc(function (msg) {
+        appendLog(String(toJs(msg)), 'player');
+        return B.none.none$;
+    });
+
+    // Register all API functions as Python builtins
+    Sk.builtins.my_gold     = my_gold;
+    Sk.builtins.my_units    = my_units;
+    Sk.builtins.enemy_units = enemy_units;
+    Sk.builtins.my_base     = my_base;
+    Sk.builtins.enemy_base  = enemy_base;
+    Sk.builtins.get_mines   = get_mines;
+    Sk.builtins.get_turn    = get_turn;
+    Sk.builtins.spawn       = spawn;
+    Sk.builtins.move        = move;
+    Sk.builtins.move_towards = move_towards;
+    Sk.builtins.attack      = attack;
+    Sk.builtins.attack_base = attack_base;
+    Sk.builtins.gather      = gather;
+    Sk.builtins.dist        = dist;
+    Sk.builtins.log         = log;
+}
+
