@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CodeArena — Python Strategy Game</title>
 
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+
+    <!-- Game CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -150,8 +155,15 @@ Archer  — Cost: 120g | HP: 70  | ATK: 18 | Range: 3</pre>
         </main>
     </div>
 
+    <!-- Scripts (order matters) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt-stdlib.js"></script>
+
     <script src="js/engine.js"></script>
     <script src="js/renderer.js"></script>
     <script src="js/bot.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
