@@ -572,3 +572,71 @@ function injectAPI() {
     Sk.builtins.log         = log;
 }
 
+/* HUD & Console helpers */
+
+function updateHUD() {
+    document.getElementById('player-gold').textContent  = engine.human.gold;
+    document.getElementById('enemy-gold').textContent    = '???';
+    document.getElementById('turn-counter').textContent  = `${engine.turn} / ${MAX_TURNS}`;
+
+    const php = engine.human.base.hp;
+    const ehp = engine.bot.base.hp;
+    document.getElementById('player-hp').textContent = `${Math.max(0, php)} / ${BASE_HP}`;
+    document.getElementById('enemy-hp').textContent  = `${Math.max(0, ehp)} / ${BASE_HP}`;
+    document.getElementById('player-health').style.width = Math.max(0, php / BASE_HP * 100) + '%';
+    document.getElementById('enemy-health').style.width  = Math.max(0, ehp / BASE_HP * 100) + '%';
+}
+
+function appendLog(msg, type) {
+    const el = document.getElementById('console-log');
+    const line = document.createElement('div');
+    line.className = 'log-line log-' + (type || 'info');
+    line.textContent = `[${engine ? engine.turn : 0}] ${msg}`;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+}
+
+function showEndOverlay() {
+    const overlay = document.getElementById('game-overlay');
+    const title   = document.getElementById('overlay-title');
+    const message = document.getElementById('overlay-message');
+
+    if (engine.winner === 'human') {
+        title.textContent   = '🎉 Victory!';
+        title.style.color   = '#3fb950';
+        message.textContent = `You destroyed the enemy base in ${engine.turn} turns!`;
+    } else {
+        title.textContent   = '💀 Defeat';
+        title.style.color   = '#f85149';
+        message.textContent = 'The bot destroyed your base. Improve your strategy and try again!';
+    }
+    overlay.classList.remove('hidden');
+}
+
+function setButtons(state) {
+    const run   = document.getElementById('btn-run');
+    const step  = document.getElementById('btn-step');
+    const pause = document.getElementById('btn-pause');
+    const reset = document.getElementById('btn-reset');
+
+    if (state === 'running') {
+        run.disabled   = true;
+        step.disabled  = true;
+        pause.disabled = false;
+        pause.textContent = '⏸ Pause';
+        reset.disabled = false;
+    } else if (state === 'finished') {
+        run.disabled   = true;
+        step.disabled  = true;
+        pause.disabled = true;
+        reset.disabled = false;
+    } else {
+        run.disabled   = false;
+        step.disabled  = false;
+        pause.disabled = true;
+        reset.disabled = false;
+    }
+}
+
+/* Utilities */
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
